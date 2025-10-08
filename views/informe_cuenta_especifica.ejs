@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= reportTitle %> · <%= accountName %> · <%= period %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ===== Base (modo claro, A4, tipografía) ===== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --grid: #EEF1F4;
+      --accent: #007AFF;
+      --green: #16A34A;
+      --red: #FF5A5F;
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page{ max-width: 800px; margin: 0 auto; padding: 8px 0 16px; }
+
+    /* ===== Cabecera ===== */
+    .header{
+      margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      align-items: end;
+    }
+    .title{
+      margin: 0; font-size: 18pt; font-weight: 800; line-height: 1.2; color: var(--text);
+    }
+    .meta{
+      display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;
+    }
+    .badge{
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 10.5pt;
+      color: var(--muted);
+      box-shadow: var(--shadow-sm);
+    }
+    .badge.account{ color: var(--accent); font-weight: 700; }
+
+    /* ===== Resumen ===== */
+    .summary{
+      display: grid; gap: 10px;
+      grid-template-columns: 1fr 1fr;
+      margin: 12px 0 14px;
+    }
+    @media (min-width: 720px){
+      .summary{ grid-template-columns: repeat(4, 1fr); }
+    }
+    .stat{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      padding: 12px;
+      display: grid; gap: 6px;
+      min-height: 86px;
+    }
+    .stat .label{
+      font-size: 10pt; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; font-weight: 600;
+    }
+    .stat .value{
+      margin: 0; font-size: 16pt; font-weight: 800; line-height: 1.2;
+    }
+    .pos{ color: var(--green); }
+    .neg{ color: var(--red); }
+    .acc{ color: var(--accent); }
+
+    /* ===== Tabla de movimientos ===== */
+    .table-card{
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: var(--shadow-sm);
+      padding: 12px;
+    }
+    table{ width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+    thead th{
+      text-align: left; font-weight: 700; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding: 10px 8px;
+      background: #FFFFFF;
+    }
+    tbody td{
+      padding: 10px 8px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even){ background: #FAFAFB; }
+    .col-date{ width: 100px; white-space: nowrap; }
+    .col-cat{ width: 140px; }
+    .col-amount{ width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+    .amount-pos{ color: var(--green); font-weight: 700; }
+    .amount-neg{ color: var(--red); font-weight: 700; }
+
+    .cat-pill{
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); background: #FFFFFF;
+      padding: 3px 8px; border-radius: 999px; font-weight: 600; color: var(--muted);
+      white-space: nowrap;
+    }
+    .dot{ width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    caption{ caption-side: bottom; text-align: left; color: var(--muted); font-size: 10pt; margin-top: 8px; }
+
+    /* ===== Reglas de impresión multi-página ===== */
+    @media print{
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr, img { page-break-inside: avoid; break-inside: avoid; }
+    }
+
+    /* Accesibilidad */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Cabecera ===== -->
+    <header class="header" role="banner">
+      <h1 class="title"><%= reportTitle %></h1>
+      <div class="meta">
+        <% if (typeof accountName !== 'undefined' && accountName) { %>
+          <span class="badge account" aria-label="Nombre de la cuenta"><%= accountName %></span>
+        <% } %>
+        <span class="badge" aria-label="Período"><%= period %></span>
+      </div>
+    </header>
+
+    <!-- ===== Helpers EJS ===== -->
+    <%
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : 'EUR';
+      const money = (n, frac=2) => {
+        try {
+          return new Intl.NumberFormat(_locale, { style: 'currency', currency: _currency, minimumFractionDigits: frac, maximumFractionDigits: frac }).format(Number(n)||0);
+        } catch {
+          const num = Number(n)||0;
+          const sign = (num < 0) ? '-' : '';
+          const abs = Math.abs(num).toFixed(frac).replace('.', ',');
+          return sign + abs + ' ' + _currency;
+        }
+      };
+
+      // Normalización de balances
+      const opening = (typeof openingBalance !== 'undefined' && openingBalance != null) ? Number(openingBalance) : 0;
+
+      const txsRaw = Array.isArray(transactions) ? transactions : [];
+      // Parse de fecha DD/MM/AAAA y orden cronológico ascendente
+      function parseDateDDMMYYYY(s){
+        try{
+          const [d,m,y] = String(s||'').split(/[\/\-\.]/).map(Number);
+          if (!d || !m || !y) return new Date('2000-01-01');
+          return new Date(y, m-1, d);
+        } catch{ return new Date('2000-01-01'); }
+      }
+      const txs = txsRaw.map((t,i)=>({
+        idx: i,
+        date: String(t?.date || ''),
+        dt: parseDateDDMMYYYY(t?.date),
+        description: String(t?.description || 'Movimiento'),
+        categoryName: String(t?.categoryName || '—'),
+        amount: Number(t?.amount) || 0
+      })).sort((a,b)=> a.dt - b.dt);
+
+      // Totales por signo
+      const sumCredits = txs.filter(t => t.amount > 0).reduce((a,t)=> a + t.amount, 0);
+      const sumDebits = txs.filter(t => t.amount < 0).reduce((a,t)=> a + t.amount, 0); // negativo
+
+      const credits = (typeof totalCredits !== 'undefined' && totalCredits != null) ? Number(totalCredits) : sumCredits;
+      const debits = (typeof totalDebits !== 'undefined' && totalDebits != null) ? Number(totalDebits) : sumDebits; // se espera negativo
+      const closing = (typeof closingBalance !== 'undefined' && closingBalance != null)
+        ? Number(closingBalance)
+        : (opening + credits + debits);
+
+      // Paleta para puntos de categoría (consistente pero ligera)
+      const palette = ['#007AFF','#5856D6','#FF9500','#34C759','#AF52DE','#FF2D55','#5AC8FA','#FFCC00','#30B0C7','#7D7AFF'];
+      function dotColor(name){
+        const s = String(name||'cat'); let h=0;
+        for (let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i))>>>0; }
+        return palette[h % palette.length];
+      }
+    %>
+
+    <!-- ===== Resumen ===== -->
+    <section class="summary" aria-label="Resumen de saldos">
+      <article class="stat" role="group" aria-label="Saldo inicial">
+        <div class="label">Saldo Inicial</div>
+        <h2 class="value acc"><%= money(opening) %></h2>
+      </article>
+      <article class="stat" role="group" aria-label="Total ingresos">
+        <div class="label">Total Ingresos</div>
+        <h2 class="value pos"><%= money(credits) %></h2>
+      </article>
+      <article class="stat" role="group" aria-label="Total gastos">
+        <div class="label">Total Gastos</div>
+        <h2 class="value neg"><%= money(debits) %></h2>
+      </article>
+      <article class="stat" role="group" aria-label="Saldo final">
+        <div class="label">Saldo Final</div>
+        <h2 class="value acc"><%= money(closing) %></h2>
+      </article>
+    </section>
+
+    <!-- ===== Tabla de movimientos ===== -->
+    <section class="table-card" aria-labelledby="txTitle">
+      <h2 id="txTitle" class="sr-only">Movimientos de la cuenta</h2>
+      <table role="table" aria-describedby="txCaption">
+        <thead>
+          <tr>
+            <th scope="col" class="col-date">Fecha</th>
+            <th scope="col">Descripción</th>
+            <th scope="col" class="col-cat">Categoría</th>
+            <th scope="col" class="col-amount">Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!txs.length) { %>
+            <tr>
+              <td colspan="4" style="text-align:center; color: var(--muted); padding: 24px;">
+                No hay movimientos registrados en este período.
+              </td>
+            </tr>
+          <% } else { 
+               txs.forEach(t => { 
+                 const cls = t.amount < 0 ? 'amount-neg' : (t.amount > 0 ? 'amount-pos' : '');
+          %>
+            <tr>
+              <td class="col-date"><%= t.date %></td>
+              <td>
+                <div><%= t.description %></div>
+              </td>
+              <td class="col-cat">
+                <span class="cat-pill">
+                  <%= `<span class="dot" style="background:${dotColor(t.categoryName)}"></span>` %>
+                  <%= t.categoryName %>
+                </span>
+              </td>
+              <td class="col-amount <%= cls %>"><%= money(t.amount) %></td>
+            </tr>
+          <% }) } %>
+        </tbody>
+        <caption id="txCaption">Extracto detallado de movimientos de <%= accountName || 'la cuenta' %> en <%= period %>. Importes en <%= _currency %>.</caption>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

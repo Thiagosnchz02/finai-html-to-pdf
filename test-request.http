@@ -1,0 +1,45 @@
+@local = http://localhost:8080
+@cloud = https://TU_SERVICIO-DE-CLOUD-RUN.a.run.app
+@baseUrl = {{local}}    # Cambia a {{cloud}} cuando lo despliegues
+
+### 🔍 Health check
+GET {{baseUrl}}/
+Accept: application/json
+
+### 🧾 Generar PDF (informe mensual)
+# Sugerencia: deja "Accept: application/pdf" para que la respuesta se detecte como PDF.
+# En la respuesta, usa "Save Response" para guardarlo como archivo .pdf.
+POST {{baseUrl}}/generate-pdf
+Accept: application/pdf
+Content-Type: application/json
+
+{
+  "templateName": "informe-mensual",
+  "templateData": {
+    "userName": "Andrés",
+    "periodo": "Septiembre 2025",
+    "totalGastado": 540.5,
+    "totalIngresos": 1280.0,
+    "ahorroNeto": 739.5,
+    "numTransacciones": 42,
+    "categoriasTop": [
+      { "nombre": "Supermercado", "importe": 220.75, "porcentaje": 40.8 },
+      { "nombre": "Transporte",  "importe": 80.00,  "porcentaje": 14.8 },
+      { "nombre": "Ocio",        "importe": 64.90,  "porcentaje": 12.0 }
+    ],
+    "notas": [
+      "Aumento de ingresos por bonus.",
+      "Reducido gasto en restauración."
+    ]
+  }
+}
+
+### ❌ Ejemplo de error (plantilla inexistente)
+POST {{baseUrl}}/generate-pdf
+Accept: application/json
+Content-Type: application/json
+
+{
+  "templateName": "no-existe",
+  "templateData": {}
+}

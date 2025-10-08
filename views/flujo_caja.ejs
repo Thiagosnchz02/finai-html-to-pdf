@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= reportTitle %> · <%= period %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ==== Configuración base (modo claro, A4, tipografía) ==== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --accent: #007AFF;
+      --green: #16A34A;
+      --red: #FF5A5F;
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ==== Layout contenedor ==== */
+    .page{
+      max-width: 800px;                 /* ~ ancho cómodo dentro de A4 con márgenes */
+      margin: 0 auto;
+      padding: 8px 0 16px;
+    }
+
+    /* ==== Cabecera ==== */
+    .header{
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      grid-gap: 16px;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .logo{
+      width: 56px; height: 56px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent) 0%, #4CA9FF 100%);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #FFFFFF; font-weight: 700; letter-spacing: 0.5px;
+      box-shadow: var(--shadow-sm);
+      font-size: 12pt;
+    }
+    .header-titles{
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .report-title{
+      margin: 0;
+      font-weight: 700;
+      font-size: 18pt;
+      line-height: 1.25;
+      color: var(--text);
+    }
+    .period{
+      margin: 0;
+      font-size: 11pt;
+      color: var(--muted);
+    }
+
+    /* ==== Tarjetas métricas ==== */
+    .cards{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin: 18px 0 12px;
+    }
+    @media (min-width: 680px){
+      .cards{ grid-template-columns: repeat(3, 1fr); }
+    }
+    .card{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 112px;
+    }
+    .label{
+      font-size: 10pt;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .value{
+      margin: 0;
+      font-size: 20pt;
+      font-weight: 800;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+    .subrow{
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pill{
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 9.5pt; font-weight: 600;
+      padding: 4px 8px; border-radius: 999px;
+      border: 1px solid var(--border); background: #FFF;
+      color: var(--muted);
+    }
+    .arrow{
+      width: 10px; height: 10px; display: inline-block;
+    }
+    /* Estilos para estado positivo/negativo aplicados mediante clases (evita EJS dentro de style=) */
+    .pill--positive{ border-color:#BBF7D0; color:#166534; background:#F0FDF4; }
+    .pill--negative{ border-color:#FECACA; color:#9F1239; background:#FEF2F2; }
+    .arrow--rotated{ transform: rotate(180deg); }
+
+    /* Colores semánticos de valores */
+    .value--income{ color: var(--green); }
+    .value--expense{ color: var(--red); }
+    .value--savings{ color: var(--accent); }
+
+    /* ==== Conclusión ==== */
+    .conclusion{
+      margin-top: 12px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .conclusion p{
+      margin: 0 0 6px 0;
+      font-size: 11pt;
+      color: var(--text);
+    }
+    .hint{
+      margin: 0;
+      color: var(--muted);
+      font-size: 10.5pt;
+    }
+
+    /* ==== Pie de página ==== */
+    .footer{
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10.5pt;
+      color: var(--muted);
+      display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+
+    /* ==== Utilidades ==== */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+      white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ========= Cabecera ========= -->
+    <header class="header">
+      <!-- Placeholder de logo FinAi -->
+      <div class="logo" aria-label="FinAi">FinAi</div>
+      <div class="header-titles">
+        <h1 class="report-title"><%= reportTitle %></h1>
+        <p class="period"><%= period %></p>
+      </div>
+    </header>
+
+    <!-- ========= Helpers EJS para formato ========= -->
+    <% 
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : 'EUR';
+      const money = (n) => {
+        try {
+          return new Intl.NumberFormat(_locale, { style: 'currency', currency: _currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+        } catch {
+          const sign = (n < 0) ? '-' : '';
+          const abs = Math.abs(Number(n) || 0).toFixed(2).replace('.', ',');
+          return sign + abs + ' ' + _currency;
+        }
+      };
+      const savingsSignLabel = (n) => n >= 0 ? 'Positivo' : 'Negativo';
+      const isPositive = (n) => Number(n) >= 0;
+    %>
+
+    <!-- ========= Cuerpo: Métricas clave ========= -->
+    <section class="cards">
+      <!-- Ingresos Totales -->
+      <article class="card" role="group" aria-label="Ingresos Totales">
+        <div class="label">Ingresos Totales</div>
+        <h2 class="value value--income"><%= money(totalIncome) %></h2>
+        <div class="subrow">
+          <span class="pill">
+            <!-- Flecha arriba (ingresos) -->
+            <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5l6 6h-4v8h-4v-8H6z" fill="currentColor"></path>
+            </svg>
+            Flujo de entrada
+          </span>
+        </div>
+      </article>
+
+      <!-- Gastos Totales -->
+      <article class="card" role="group" aria-label="Gastos Totales">
+        <div class="label">Gastos Totales</div>
+        <h2 class="value value--expense"><%= money(totalExpense) %></h2>
+        <div class="subrow">
+          <span class="pill">
+            <!-- Flecha abajo (gastos) -->
+            <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 19l-6-6h4V5h4v8h4z" fill="currentColor"></path>
+            </svg>
+            Flujo de salida
+          </span>
+        </div>
+      </article>
+
+      <!-- Ahorro Neto -->
+      <article class="card" role="group" aria-label="Ahorro Neto">
+        <div class="label">Ahorro Neto</div>
+        <h2 class="value value--savings"><%= money(netSavings) %></h2>
+        <div class="subrow">
+          <span class="pill <%= isPositive(netSavings) ? 'pill--positive' : 'pill--negative' %>">
+            <svg class="arrow <%= isPositive(netSavings) ? '' : 'arrow--rotated' %>" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5l6 6h-4v8h-4v-8H6z" fill="currentColor"></path>
+            </svg>
+            <%= savingsSignLabel(netSavings) %>
+          </span>
+        </div>
+      </article>
+    </section>
+
+    <!-- ========= Conclusión ========= -->
+    <section class="conclusion" aria-label="Conclusión y recomendación">
+      <p><%= summaryMessage %></p>
+      <% 
+        const tip = isPositive(netSavings)
+          ? 'Consejo: Reserva entre el 10% y el 20% de tus ingresos para metas y un 5% para imprevistos.'
+          : 'Consejo: Revisa tus 3 categorías de mayor gasto y fija límites para el próximo mes.';
+      %>
+      <p class="hint"><%= tip %></p>
+    </section>
+
+    <!-- ========= Pie de página ========= -->
+    <footer class="footer">
+      <div>Informe para: <strong><%= userName %></strong></div>
+      <div>Generado el: <%= generatedAt %></div>
+    </footer>
+  </div>
+</body>
+</html>

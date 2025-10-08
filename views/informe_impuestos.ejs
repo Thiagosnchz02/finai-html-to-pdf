@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= reportTitle %> · <%= year %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ===== Base (modo claro, A4, tipografía) ===== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --grid: #EEF1F4;
+      --accent: #007AFF;
+      --green: #16A34A;
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+      --warn: #1D4ED8;
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page{ max-width: 800px; margin: 0 auto; padding: 8px 0 16px; }
+
+    /* ===== Cabecera ===== */
+    .header{
+      margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 12px; justify-content: space-between; flex-wrap: wrap;
+    }
+    .title{
+      margin: 0; font-size: 18pt; font-weight: 800; line-height: 1.2;
+    }
+    .sub{ margin: 0; font-size: 11pt; color: var(--muted); }
+
+    /* ===== Totales ===== */
+    .summary{
+      display: grid; gap: 10px;
+      grid-template-columns: 1fr;
+      margin: 12px 0 14px;
+    }
+    @media (min-width: 720px){
+      .summary{ grid-template-columns: repeat(2, 1fr); }
+    }
+    .stat{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      padding: 12px;
+      display: grid; gap: 6px;
+      min-height: 86px;
+    }
+    .stat .label{
+      font-size: 10pt; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; font-weight: 600;
+    }
+    .stat .value{
+      margin: 0; font-size: 16pt; font-weight: 800; line-height: 1.2;
+    }
+    .pos{ color: var(--green); }
+    .acc{ color: var(--accent); }
+
+    /* ===== Tabla de gastos deducibles ===== */
+    .table-card{
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: var(--shadow-sm);
+      padding: 12px;
+    }
+    .table-title{
+      margin: 0 0 6px 0;
+      font-size: 12.5pt; font-weight: 800; color: var(--text);
+    }
+    table{ width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+    thead th{
+      text-align: left; font-weight: 700; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding: 10px 8px;
+      background: #FFFFFF;
+    }
+    tbody td{
+      padding: 10px 8px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even){ background: #FAFAFB; }
+    tfoot td{
+      padding: 10px 8px; border-top: 2px solid var(--border); font-weight: 800;
+    }
+    .col-cat { width: 70%; }
+    .col-amt { width: 30%; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    caption{ caption-side: bottom; text-align: left; color: var(--muted); font-size: 10pt; margin-top: 8px; }
+
+    /* ===== Disclaimer ===== */
+    .disclaimer{
+      margin-top: 16px;
+      border: 1px solid #BFDBFE;
+      background: #EFF6FF;
+      color: #1E3A8A;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: flex-start;
+    }
+    .disc-icon{
+      width: 20px; height: 20px; display: inline-block; color: var(--warn);
+    }
+    .disc-text{
+      margin: 0; font-size: 10.5pt; line-height: 1.5;
+    }
+
+    /* ===== Reglas de impresión multi-página ===== */
+    @media print{
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr, img { page-break-inside: avoid; break-inside: avoid; }
+    }
+
+    /* Accesibilidad */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Cabecera ===== -->
+    <header class="header" role="banner">
+      <h1 class="title"><%= reportTitle %></h1>
+      <p class="sub">Año fiscal: <%= year %></p>
+    </header>
+
+    <!-- ===== Helpers EJS ===== -->
+    <%
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : 'EUR';
+      const money = (n, frac=2) => {
+        try {
+          return new Intl.NumberFormat(_locale, { style: 'currency', currency: _currency, minimumFractionDigits: frac, maximumFractionDigits: frac }).format(Number(n)||0);
+        } catch {
+          const num = Number(n)||0;
+          const sign = (num < 0) ? '-' : '';
+          const abs = Math.abs(num).toFixed(frac).replace('.', ',');
+          return sign + abs + ' ' + _currency;
+        }
+      };
+
+      // Normaliza categorías deducibles y ordena por importe desc
+      const items = (Array.isArray(deductibleCategories) ? deductibleCategories : []).map((c, i) => ({
+        idx: i,
+        categoryName: String(c?.categoryName || `Categoría ${i+1}`),
+        totalAmount: Math.max(0, Number(c?.totalAmount) || 0)
+      })).sort((a,b) => b.totalAmount - a.totalAmount);
+
+      const totalIncome = Number(totalAnnualIncome) || 0;
+      const totalDeductible = items.reduce((a, c) => a + c.totalAmount, 0);
+    %>
+
+    <!-- ===== Totales ===== -->
+    <section class="summary" aria-label="Resumen anual">
+      <article class="stat" role="group" aria-label="Total ingresos anuales">
+        <div class="label">Total Ingresos Anuales</div>
+        <h2 class="value pos"><%= money(totalIncome, 0) %></h2>
+      </article>
+      <article class="stat" role="group" aria-label="Total gastos potencialmente deducibles">
+        <div class="label">Gastos Potencialmente Deducibles (Subtotal)</div>
+        <h2 class="value acc"><%= money(totalDeductible) %></h2>
+      </article>
+    </section>
+
+    <!-- ===== Tabla de gastos deducibles ===== -->
+    <section class="table-card" aria-labelledby="dedTitle">
+      <h2 id="dedTitle" class="table-title">Gastos Potencialmente Deducibles (por categoría)</h2>
+      <table role="table" aria-describedby="dedCaption">
+        <thead>
+          <tr>
+            <th scope="col" class="col-cat">Categoría</th>
+            <th scope="col" class="col-amt">Importe anual</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!items.length) { %>
+            <tr>
+              <td colspan="2" style="text-align:center; color: var(--muted); padding: 24px;">
+                No hay gastos potencialmente deducibles registrados para este año.
+              </td>
+            </tr>
+          <% } else { items.forEach(row => { %>
+            <tr>
+              <td class="col-cat"><%= row.categoryName %></td>
+              <td class="col-amt"><%= money(row.totalAmount) %></td>
+            </tr>
+          <% }) } %>
+        </tbody>
+        <% if(items.length){ %>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td class="col-amt"><%= money(totalDeductible) %></td>
+          </tr>
+        </tfoot>
+        <% } %>
+        <caption id="dedCaption">Resumen informativo de gastos agrupados por categoría. Importes en <%= _currency %>.</caption>
+      </table>
+    </section>
+
+    <!-- ===== Disclaimer ===== -->
+    <section class="disclaimer" role="note" aria-label="Aviso legal">
+      <svg class="disc-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+      </svg>
+      <p class="disc-text"><%= (typeof disclaimer !== 'undefined' && disclaimer) ? disclaimer : 'Este informe es una herramienta informativa y no constituye asesoramiento fiscal profesional. Consulta con un asesor.' %></p>
+    </section>
+  </div>
+</body>
+</html>

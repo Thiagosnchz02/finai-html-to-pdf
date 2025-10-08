@@ -1,0 +1,17 @@
+{
+  "name": "finai-html-to-pdf",
+  "version": "1.0.0",
+  "description": "Microservicio HTML -> PDF para FinAi (Express + EJS + Puppeteer), listo para Google Cloud Run.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "puppeteer": "^22.10.0"
+  }
+}

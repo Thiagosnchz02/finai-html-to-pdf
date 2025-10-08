@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= analysisTitle %> · <%= period || '' %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ===== Base (modo claro, A4, tipografía) ===== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --grid: #EEF1F4;
+      --accent: #007AFF;
+      --green-r: 22;  --green-g: 163; --green-b: 74;   /* #16A34A */
+      --red-r: 255;  --red-g: 90;   --red-b: 95;       /* #FF5A5F */
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page{ max-width: 800px; margin: 0 auto; padding: 8px 0 16px; }
+
+    /* ===== Cabecera ===== */
+    .header{
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .title{
+      margin: 0; font-size: 18pt; font-weight: 800; line-height: 1.2;
+    }
+    .subtitle{
+      margin: 0; font-size: 11pt; color: var(--muted);
+    }
+
+    /* ===== Tarjeta calendario ===== */
+    .calendar-card{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .cal-head{
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;
+      color: var(--muted); font-size: 10.5pt;
+    }
+
+    .week-grid{
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+      margin-bottom: 8px;
+    }
+    .weekday{
+      text-align: center; font-size: 10pt; color: var(--muted); font-weight: 700;
+    }
+
+    .calendar{
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+    }
+    .cell{
+      position: relative;
+      height: 64px; /* Ajustado para A4 */
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #FFFFFF;
+      overflow: hidden;
+    }
+    .day{
+      position: absolute; top: 6px; left: 8px;
+      font-size: 10pt; font-weight: 700; line-height: 1;
+      color: var(--text);
+      mix-blend-mode: normal;
+    }
+    .hint{
+      position: absolute; bottom: 6px; right: 8px;
+      font-size: 9pt; color: rgba(15,23,42,0.7);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== Leyenda ===== */
+    .legend{
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      margin-top: 10px; color: var(--muted); font-size: 10.5pt;
+    }
+    .legend-group{ display: flex; align-items: center; gap: 8px; }
+    .bar{
+      width: 140px; height: 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: #FFF;
+      overflow: hidden;
+    }
+    .bar.positive{
+      background: linear-gradient(90deg, rgba(var(--green-r),var(--green-g),var(--green-b),0.18) 0%, rgba(var(--green-r),var(--green-g),var(--green-b),0.95) 100%);
+    }
+    .bar.negative{
+      background: linear-gradient(90deg, rgba(var(--red-r),var(--red-g),var(--red-b),0.18) 0%, rgba(var(--red-r),var(--red-g),var(--red-b),0.95) 100%);
+    }
+    .legend-dot{
+      width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+    }
+
+    /* Accesibilidad */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Cabecera ===== -->
+    <header class="header" role="banner">
+      <h1 class="title"><%= analysisTitle %></h1>
+      <p class="subtitle"><%= period || '' %></p>
+    </header>
+
+    <!-- ===== Helpers EJS ===== -->
+    <%
+      // ===== Utilidades de fecha y formato =====
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : null;
+
+      const money = (n) => {
+        const num = Number(n) || 0;
+        try {
+          if (_currency) return new Intl.NumberFormat(_locale, { style: 'currency', currency: _currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+          return new Intl.NumberFormat(_locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        } catch {
+          return String(num.toFixed(2));
+        }
+      };
+
+      const monthMap = {
+        'enero':0,'febrero':1,'marzo':2,'abril':3,'mayo':4,'junio':5,'julio':6,'agosto':7,'septiembre':8,'setiembre':8,'octubre':9,'noviembre':10,'diciembre':11,
+        'ene':0,'feb':1,'mar':2,'abr':3,'may':4,'jun':5,'jul':6,'ago':7,'sep':8,'oct':9,'nov':10,'dic':11
+      };
+
+      function parseISODate(s){
+        // acepta "YYYY-MM-DD" o Date string estándar
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d;
+        return new Date('1970-01-01');
+      }
+      function ymd(d){
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${day}`;
+      }
+
+      // ===== Determinar año/mes del análisis =====
+      let year, monthIdx; // monthIdx 0..11
+      if (typeof period === 'string' && period.trim()){
+        const parts = period.toLowerCase().replace(/\s+de\s+/g,' ').split(/\s+/);
+        // Busca primer token con mes, y primer número de 4 dígitos como año
+        let mTok = null, yTok = null;
+        for (const p of parts){
+          if (p in monthMap && mTok === null) mTok = p;
+          if (/^\d{4}$/.test(p) && yTok === null) yTok = p;
+        }
+        if (mTok !== null && yTok !== null){
+          monthIdx = monthMap[mTok];
+          year = parseInt(yTok, 10);
+        }
+      }
+
+      const daily = Array.isArray(dailyData) ? dailyData : [];
+      if ((year == null || monthIdx == null) && daily.length){
+        const d0 = parseISODate(daily[0].date);
+        if (!isNaN(d0.getTime())) { year = d0.getFullYear(); monthIdx = d0.getMonth(); }
+      }
+      if (year == null || monthIdx == null){
+        const now = new Date();
+        year = now.getFullYear();
+        monthIdx = now.getMonth();
+      }
+
+      // ===== Construir mapa de flujos por día del mes =====
+      const byDate = new Map();
+      daily.forEach(it => {
+        const d = parseISODate(it?.date);
+        if (isNaN(d.getTime())) return;
+        if (d.getFullYear() !== year || d.getMonth() !== monthIdx) return; // solo datos del mes
+        const key = ymd(d);
+        const val = Number(it?.netFlow) || 0;
+        byDate.set(key, (byDate.get(key) || 0) + val);
+      });
+
+      // Rango del mes
+      const first = new Date(year, monthIdx, 1);
+      const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+      const weekdayJS = first.getDay();            // 0=Dom ... 6=Sáb
+      const startIndex = (weekdayJS + 6) % 7;      // 0=Lun ... 6=Dom (queremos lunes primero)
+      const neededCells = startIndex + daysInMonth;
+      const totalCells = Math.ceil(neededCells / 7) * 7;  // filas completas
+
+      // Determinar máximos para la intensidad
+      let maxAbs = 0, maxPos = 0, maxNeg = 0;
+      for (let d=1; d<=daysInMonth; d++){
+        const dateObj = new Date(year, monthIdx, d);
+        const key = ymd(dateObj);
+        const v = byDate.get(key) || 0;
+        const abs = Math.abs(v);
+        if (abs > maxAbs) maxAbs = abs;
+        if (v > 0 && v > maxPos) maxPos = v;
+        if (v < 0 && Math.abs(v) > Math.abs(maxNeg)) maxNeg = v;
+      }
+      if (maxAbs === 0) maxAbs = 1; // evita división por cero
+
+      function alphaOf(v){
+        if (!isFinite(v) || v === 0) return 0;
+        const k = Math.min(1, Math.max(0, Math.abs(v) / maxAbs)); // 0..1
+        return (0.18 + 0.82 * k); // mínimo visible 0.18
+      }
+      function textColorFor(alpha){
+        return alpha > 0.60 ? '#FFFFFF' : '#0F172A';
+      }
+
+      // Nombres de días (L a D)
+      const weekdays = ['L','M','X','J','V','S','D'];
+
+      // Subtítulo si period estaba vacío
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const prettyPeriod = (typeof period === 'string' && period.trim()) ? period : (monthNames[monthIdx] + ' ' + year);
+    %>
+
+    <!-- ===== Calendario Heatmap ===== -->
+    <section class="calendar-card" aria-labelledby="calTitle">
+      <div class="cal-head">
+        <h2 id="calTitle" class="sr-only">Calendario de flujo de caja</h2>
+        <div><strong><%= prettyPeriod %></strong></div>
+        <div style="opacity:.85">Celdas más oscuras indican mayor magnitud</div>
+      </div>
+
+      <!-- Encabezado de días -->
+      <div class="week-grid" aria-hidden="true">
+        <% weekdays.forEach(w => { %>
+          <div class="weekday"><%= w %></div>
+        <% }) %>
+      </div>
+
+      <!-- Celdas -->
+      <div class="calendar" role="grid" aria-label="Mapa de calor diario del flujo de caja">
+        <% 
+          // Render de celdas vacías iniciales
+          for (let i=0; i<startIndex; i++){ %>
+            <div class="cell" role="gridcell" aria-disabled="true"></div>
+        <% } %>
+
+        <% 
+          // Render de cada día del mes
+          for (let day=1; day<=daysInMonth; day++){
+            const dateObj = new Date(year, monthIdx, day);
+            const key = ymd(dateObj);
+            const v = byDate.get(key) || 0;
+            const a = alphaOf(v);
+            const isPos = v > 0, isNeg = v < 0;
+            const bg = isPos
+              ? `rgba(${getComputedStyle ? '' : ''}<%= '' %><%= '--green' %>)` // placeholder (no se usa)
+              : `rgba(${getComputedStyle ? '' : ''}<%= '' %><%= '--red' %>)`;  // placeholder (no se usa)
+            // construimos directamente el rgba
+            const bgStyle = isPos
+              ? `background: rgba(${22},${163},${74},${a.toFixed(3)});`
+              : (isNeg ? `background: rgba(${255},${90},${95},${a.toFixed(3)});` : 'background:#FFFFFF;');
+            const dayColor = textColorFor(a);
+        %>
+          <%- `<div class="cell" role="gridcell" aria-label="Día ${day}. Flujo neto: ${money(v)}" style="${bgStyle}">` %>
+            <%= `<div class="day" style="color:${dayColor}">${day}</div>` %>
+            <!-- opcional: pista pequeña (oculta si cero) -->
+            <% if (v !== 0) { %>
+              <%= `<div class="hint" style="color:${dayColor === '#FFFFFF' ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.75)'}">${v > 0 ? '+' : ''}${money(v)}</div>` %>
+            <% } %>
+            </div>
+        <% } %>
+
+        <% 
+          // Relleno de celdas finales para completar la grilla
+          const tail = totalCells - (startIndex + daysInMonth);
+          for (let i=0; i<tail; i++){ %>
+            <div class="cell" role="gridcell" aria-disabled="true"></div>
+        <% } %>
+      </div>
+
+      <!-- Leyenda -->
+      <div class="legend" aria-label="Leyenda de colores">
+        <div class="legend-group">
+          <span class="legend-dot" style="background: rgba(22,163,74,0.95)"></span>
+          <span>Positivo</span>
+          <div class="bar positive" title="Mayor positivo"></div>
+          <span style="min-width:90px; text-align:right"><%= maxPos ? ('+' + money(maxPos)) : '+0' %></span>
+        </div>
+        <div class="legend-group">
+          <span class="legend-dot" style="background: rgba(255,90,95,0.95)"></span>
+          <span>Negativo</span>
+          <div class="bar negative" title="Mayor negativo"></div>
+          <span style="min-width:90px; text-align:right">-<%= maxNeg ? money(Math.abs(maxNeg)) : '0' %></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

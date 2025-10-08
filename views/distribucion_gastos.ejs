@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= analysisTitle %> · <%= period %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ===== Base (modo claro, A4, tipografía) ===== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --grid: #EEF1F4;
+      --accent: #007AFF;
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+      --table-row: #FAFAFB;
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page{ max-width: 800px; margin: 0 auto; padding: 8px 0 16px; }
+
+    /* ===== Cabecera ===== */
+    .header{
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .title{
+      margin: 0; font-size: 18pt; font-weight: 800; line-height: 1.2;
+    }
+    .period{ margin: 0; font-size: 11pt; color: var(--muted); }
+
+    /* ===== Layout principal ===== */
+    .content{
+      display: grid; gap: 16px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 720px){
+      .content{ grid-template-columns: 1.2fr .8fr; }
+    }
+
+    /* ===== Donut ===== */
+    .donut-card{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+      min-height: 340px;
+      display: grid; grid-template-rows: auto auto 1fr; gap: 10px;
+    }
+    .donut-wrap{ position: relative; width: 100%; max-width: 380px; aspect-ratio: 1/1; margin: 0 auto; }
+    .donut-center{
+      position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; padding: 12px;
+    }
+    .donut-total{ margin: 2px 0 0; font-size: 16pt; font-weight: 800; color: var(--text); }
+    .donut-label{ margin: 0; font-size: 10pt; color: var(--muted); }
+
+    .legend{
+      display: grid; gap: 6px; grid-template-columns: 1fr 1fr; font-size: 10pt;
+      margin-top: 6px;
+    }
+    .legend-item{ display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .legend-dot{ width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+
+    /* ===== Tabla lateral ===== */
+    .table-card{
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: var(--shadow-sm);
+      padding: 12px;
+      display: grid; gap: 8px;
+    }
+    .table-title{ margin: 0; font-weight: 800; font-size: 12.5pt; }
+    table{ width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+    thead th{
+      text-align: left; font-weight: 700; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding: 10px 8px;
+    }
+    tbody td{
+      padding: 10px 8px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even){ background: var(--table-row); }
+    .td-cat{ display: flex; align-items: center; gap: 8px; }
+    .td-dot{ width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+    .td-money, .td-pct{ text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    /* Accesibilidad */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Cabecera ===== -->
+    <header class="header" role="banner">
+      <h1 class="title"><%= analysisTitle %></h1>
+      <p class="period"><%= period %></p>
+    </header>
+
+    <!-- ===== Helpers EJS ===== -->
+    <%
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : 'EUR';
+      const money = (n) => {
+        try {
+          return new Intl.NumberFormat(_locale, { style: 'currency', currency: _currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n)||0);
+        } catch {
+          const num = Number(n)||0;
+          const sign = (num < 0) ? '-' : '';
+          const abs = Math.abs(num).toFixed(2).replace('.', ',');
+          return sign + abs + ' ' + _currency;
+        }
+      };
+
+      // Normalización de categorías
+      const rawCats = Array.isArray(categories) ? categories : [];
+      const cats = rawCats
+        .map((c, i) => ({
+          idx: i,
+          name: (c && c.name) ? String(c.name) : 'Categoría ' + (i+1),
+          amount: Math.max(0, Number(c?.amount) || 0),
+          percentage: (c?.percentage != null && !isNaN(Number(c.percentage))) ? Math.max(0, Number(c.percentage)) : null
+        }))
+        .filter(c => c.amount >= 0);
+
+      // Total de gastos (positivo)
+      const sumAmount = cats.reduce((a, c) => a + c.amount, 0);
+      const totalFromProp = (typeof totalExpense !== 'undefined' && totalExpense != null) ? Math.abs(Number(totalExpense)) : null;
+      const total = (totalFromProp && totalFromProp > 0) ? totalFromProp : sumAmount;
+
+      // Porcentajes: calcula si faltan, y normaliza para sumar 100
+      let computed = cats.map(c => {
+        const pct = (c.percentage == null && total > 0) ? (c.amount / total) * 100 : (c.percentage || 0);
+        return { ...c, pct };
+      });
+      const sumPct = computed.reduce((a, c) => a + c.pct, 0) || 1;
+      computed = computed.map(c => ({ ...c, pct: c.pct * (100 / sumPct) }));
+
+      // Paleta y helpers
+      const palette = ['#007AFF','#5856D6','#FF9500','#34C759','#AF52DE','#FF2D55','#5AC8FA','#FFCC00','#30B0C7','#7D7AFF'];
+      const colorOf = (i) => palette[i % palette.length];
+
+      // Donut SVG params
+      const cx = 120, cy = 120, r = 80, strokeW = 28;
+      const circumference = 2 * Math.PI * r;
+
+      // Mostrar top en leyenda si son muchas
+      const legendMax = 8;
+    %>
+
+    <!-- ===== Contenido: Donut + Tabla/Leyenda ===== -->
+    <main class="content" role="main" aria-label="Distribución de gastos">
+      <!-- Donut -->
+      <section class="donut-card" aria-labelledby="donutTitle">
+        <h2 id="donutTitle" class="sr-only">Gráfico circular de distribución de gastos</h2>
+
+        <div class="donut-wrap">
+          <svg viewBox="0 0 240 240" width="100%" height="100%" role="img" aria-label="Distribución de gastos por categoría">
+            <g transform="rotate(-90 120 120)">
+              <!-- anillo base -->
+              <circle cx="<%= cx %>" cy="<%= cy %>" r="<%= r %>" fill="none" stroke="#EEF1F4" stroke-width="<%= strokeW %>"></circle>
+
+              <% 
+                let offset = 0;
+                computed.forEach((c, i) => {
+                  const dash = circumference * (c.pct / 100);
+              %>
+                <circle cx="<%= cx %>" cy="<%= cy %>" r="<%= r %>"
+                        fill="none"
+                        stroke="<%= colorOf(i) %>"
+                        stroke-width="<%= strokeW %>"
+                        stroke-linecap="butt"
+                        stroke-dasharray="<%= (dash).toFixed(2) %> <%= (circumference - dash).toFixed(2) %>"
+                        stroke-dashoffset="<%= (-offset).toFixed(2) %>">
+                </circle>
+              <%
+                  offset += dash;
+                });
+              %>
+            </g>
+          </svg>
+
+          <!-- Centro -->
+          <div class="donut-center">
+            <p class="donut-label">Gasto total</p>
+            <p class="donut-total"><%= money(total) %></p>
+          </div>
+        </div>
+
+        <!-- Leyenda compacta -->
+        <div class="legend" aria-label="Leyenda de categorías">
+          <% computed.slice(0, legendMax).forEach((c, i) => { %>
+            <div class="legend-item">
+              <%= `<span class="legend-dot" style="background:${colorOf(i)}"></span>` %>
+              <span><%= c.name %> — <%= (Math.round(c.pct * 10) / 10).toLocaleString('es-ES') %>%</span>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+
+      <!-- Tabla lateral (si el espacio lo permite se verá al lado, si no, debajo) -->
+      <section class="table-card" aria-labelledby="tableTitle">
+        <h2 id="tableTitle" class="table-title">Detalle por categoría</h2>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Categoría</th>
+              <th scope="col" class="td-money">Importe</th>
+              <th scope="col" class="td-pct">% del Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (computed.length === 0) { %>
+              <tr>
+                <td colspan="3" style="text-align:center; color: var(--muted); padding: 24px;">
+                  Sin datos para este período.
+                </td>
+              </tr>
+            <% } else { 
+                 computed.forEach((c, i) => { %>
+              <tr>
+                <td class="td-cat">
+                  <%= `<span class="td-dot" style="background:${colorOf(i)}"></span>` %>
+                  <span><%= c.name %></span>
+                </td>
+                <td class="td-money"><%= money(c.amount) %></td>
+                <td class="td-pct"><%= (Math.round(c.pct * 10) / 10).toLocaleString('es-ES') %>%</td>
+              </tr>
+            <% }) } %>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

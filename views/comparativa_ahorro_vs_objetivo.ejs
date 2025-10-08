@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title><%= analysisTitle %> · <%= period || '' %> · FinAi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <style>
+    /* ===== Base (modo claro, A4, tipografía) ===== */
+    @page { size: A4; margin: 20mm; }
+    :root{
+      --bg: #FFFFFF;
+      --surface: #F7F8FA;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E5E7EB;
+      --grid: #EEF1F4;
+      --accent: #007AFF;
+      --green: #16A34A;
+      --amber: #F59E0B;
+      --red: #FF5A5F;
+      --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+    }
+    *{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 400 11pt/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page{ max-width: 800px; margin: 0 auto; padding: 8px 0 16px; }
+
+    /* ===== Cabecera ===== */
+    .header{
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .title{
+      margin: 0; font-size: 18pt; font-weight: 800; line-height: 1.2;
+    }
+    .period{
+      margin: 0; font-size: 11pt; color: var(--muted);
+    }
+
+    /* ===== Tarjeta del gauge ===== */
+    .gauge-card{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+      margin-top: 12px;
+      display: grid; gap: 10px;
+    }
+    .summary{
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+      color: var(--muted); font-size: 10.5pt;
+    }
+    .summary .strong{ color: var(--text); font-weight: 800; }
+    .badge{
+      border: 1px solid var(--border); background: #FFFFFF;
+      padding: 3px 8px; border-radius: 999px; font-weight: 700; font-size: 10pt; color: var(--muted);
+    }
+    .badge.ok{ color: var(--green); border-color: #BBF7D0; background: #F0FDF4; }
+    .badge.warn{ color: #92400E; border-color: #FDE68A; background: #FFFBEB; }
+    .badge.over{ color: #9F1239; border-color: #FECACA; background: #FEF2F2; }
+
+    /* Accesibilidad */
+    .sr-only{
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Cabecera ===== -->
+    <header class="header" role="banner">
+      <h1 class="title"><%= analysisTitle %></h1>
+      <p class="period"><%= period || '' %></p>
+    </header>
+
+    <!-- ===== Helpers EJS ===== -->
+    <%
+      const _locale = 'es-ES';
+      const _currency = (typeof currency !== 'undefined' && currency) ? currency : null;
+
+      const money = (n, frac=2) => {
+        const num = Number(n)||0;
+        try {
+          if (_currency) return new Intl.NumberFormat(_locale, { style:'currency', currency:_currency, minimumFractionDigits: frac, maximumFractionDigits: frac }).format(num);
+          return new Intl.NumberFormat(_locale, { minimumFractionDigits: frac, maximumFractionDigits: frac }).format(num);
+        } catch { return String(num.toFixed(frac)); }
+      };
+
+      // Datos base
+      const current = Number(currentSavingsMonth) || 0;
+      const target  = Number(targetSavingsMonth) || 0;
+
+      // Porcentaje logrado: usa percentageAchieved si viene, si no lo calcula.
+      let pct = (typeof percentageAchieved !== 'undefined' && percentageAchieved != null)
+        ? Number(percentageAchieved)
+        : (target > 0 ? (current / target) * 100 : 0);
+
+      // Clamps para la aguja (0..100). Si excede, marcamos estado "over".
+      const pctRaw = pct;
+      const pctClamped = Math.max(0, Math.min(100, pctRaw));
+
+      // Estado para badge
+      const badge = pctRaw >= 100
+        ? { cls: 'ok',   label: 'Objetivo alcanzado' }
+        : (pctRaw >= 70 ? { cls: 'warn', label: 'En buen camino' }
+                        : { cls: '',     label: 'En progreso' });
+
+      // ===== Configuración del gauge (semicircular) =====
+      const VB_W = 320, VB_H = 220;
+      const CX = VB_W/2, CY = 180;  // centro del círculo (debajo de la mitad para que quepa la semicircunferencia)
+      const R  = 120;               // radio
+      const START_DEG = 180;        // izquierda
+      const END_DEG   = 0;          // derecha
+
+      function polar(cx, cy, r, deg){
+        const rad = (deg * Math.PI) / 180;
+        return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+      }
+
+      // Construye path de arco de porcentaje p0->p1 (0..100)
+      function arcPath(p0, p1){
+        const a0 = START_DEG - (p0 * 1.8);
+        const a1 = START_DEG - (p1 * 1.8);
+        const s = polar(CX, CY, R, a0);
+        const e = polar(CX, CY, R, a1);
+        const large = (Math.abs(a1 - a0) > 180) ? 1 : 0;
+        const sweep = 1; // sentido horario
+        return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${R} ${R} 0 ${large} ${sweep} ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+      }
+
+      // Aguja
+      const needleDeg = START_DEG - (pctClamped * 1.8);
+      const needleLen = R - 18;
+      const tip = polar(CX, CY, needleLen, needleDeg);
+
+      // Ticks principales (0,25,50,75,100)
+      const ticks = [0,25,50,75,100].map(p => {
+        const a = START_DEG - (p * 1.8);
+        const p1 = polar(CX, CY, R-6, a);
+        const p2 = polar(CX, CY, R, a);
+        const label = p + '%';
+        const lt = polar(CX, CY, R + 16, a);
+        return { p1, p2, lt, label };
+      });
+
+      // Segmentos de color de fondo (0-40 rojo, 40-80 ámbar, 80-100 verde)
+      const segs = [
+        { from: 0, to: 40,  color: 'var(--red)'   },
+        { from: 40, to: 80, color: 'var(--amber)' },
+        { from: 80, to: 100,color: 'var(--green)' }
+      ];
+    %>
+
+    <!-- ===== Gauge ===== -->
+    <section class="gauge-card" aria-labelledby="gaugeTitle">
+      <h2 id="gaugeTitle" class="sr-only">Comparativa de ahorro del mes frente al objetivo</h2>
+
+      <svg viewBox="0 0 <%= VB_W %> <%= VB_H %>" width="100%" height="auto" role="img"
+           aria-label="Velocímetro de ahorro mensual. <%= Math.round(pctClamped) %>% del objetivo.">
+        <defs>
+          <!-- Trazo del progreso -->
+          <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#007AFF"/>
+            <stop offset="100%" stop-color="#4CA9FF"/>
+          </linearGradient>
+          <!-- Sombra suave de la aguja -->
+          <filter id="needleGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="1.2" flood-color="rgba(0,0,0,0.25)"/>
+          </filter>
+        </defs>
+
+        <!-- Arco base gris claro -->
+        <path d="<%= arcPath(0, 100) %>" fill="none" stroke="var(--grid)" stroke-width="16" stroke-linecap="round"></path>
+
+        <!-- Segmentos de color (fondo) -->
+        <% segs.forEach(s => { %>
+          <path d="<%= arcPath(s.from, s.to) %>" fill="none" stroke="<%= s.color %>" stroke-width="8" stroke-linecap="round" opacity="0.25"></path>
+        <% }); %>
+
+        <!-- Progreso actual (0 -> pctClamped) -->
+        <% if (pctClamped > 0) { %>
+          <path d="<%= arcPath(0, pctClamped) %>" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round"></path>
+        <% } %>
+
+        <!-- Ticks y etiquetas -->
+        <g>
+          <% ticks.forEach(t => { %>
+            <line x1="<%= t.p1.x %>" y1="<%= t.p1.y %>" x2="<%= t.p2.x %>" y2="<%= t.p2.y %>"
+                  stroke="var(--border)" stroke-width="2" />
+            <text x="<%= t.lt.x %>" y="<%= t.lt.y %>" text-anchor="middle" dominant-baseline="middle"
+                  fill="var(--muted)" font-size="10"><%= t.label %></text>
+          <% }) %>
+        </g>
+
+        <!-- Aguja -->
+        <g filter="url(#needleGlow)">
+          <line x1="<%= CX %>" y1="<%= CY %>" x2="<%= tip.x %>" y2="<%= tip.y %>"
+                stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"></line>
+          <circle cx="<%= CX %>" cy="<%= CY %>" r="6" fill="#FFFFFF" stroke="var(--text)" stroke-width="2"></circle>
+        </g>
+
+        <!-- Lectura central -->
+        <g aria-hidden="true">
+          <text x="<%= CX %>" y="<%= CY - 40 %>" text-anchor="middle" fill="var(--muted)" font-size="10.5">Progreso</text>
+          <text x="<%= CX %>" y="<%= CY - 20 %>" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="800">
+            <%= (Math.round(pctRaw * 10) / 10).toLocaleString('es-ES') %>%
+          </text>
+        </g>
+      </svg>
+
+      <!-- Resumen numérico -->
+      <div class="summary">
+        <div>
+          <span>Ahorro actual: </span><span class="strong"><%= money(current) %></span>
+          <span> · Objetivo mensual: </span><span class="strong"><%= target > 0 ? money(target) : '—' %></span>
+        </div>
+        <div>
+          <span class="badge <%= badge.cls %>"><%= badge.label %></span>
+          <% if (pctRaw > 100) { %>
+            <span class="badge over">+<%= (Math.round((pctRaw - 100) * 10) / 10).toLocaleString('es-ES') %>% sobre el objetivo</span>
+          <% } %>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
