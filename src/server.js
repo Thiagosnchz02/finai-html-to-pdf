@@ -12,8 +12,8 @@ require('dotenv').config();
 
 const app = express();
 
-// Cloud Run inyecta PORT; por defecto 8080
-const PORT = process.env.PORT || 8080;
+// Cloud Run inyecta PORT; por defecto 3000
+const PORT = process.env.PORT || 3000;
 
 // Body parser para JSON (ajusta el límite si necesitas HTML muy grande)
 app.use(express.json({ limit: '2mb' }));
