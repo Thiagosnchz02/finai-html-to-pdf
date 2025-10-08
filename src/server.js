@@ -8,6 +8,8 @@
 const path = require('path');
 const express = require('express');
 
+require('dotenv').config();
+
 const app = express();
 
 // Cloud Run inyecta PORT; por defecto 8080
@@ -33,6 +35,7 @@ app.get('/_ah/health', (req, res) => res.status(200).send('ok'));
 
 // Ruta principal de generación de PDFs
 const generatePdfRouter = require('./routes/generate-pdf');
+const auth = require('./middleware/auth');
 app.use('/generate-pdf', generatePdfRouter);
 
 // Manejador de errores global
